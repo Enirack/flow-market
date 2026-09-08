@@ -7,14 +7,26 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.json",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "prisma generate && tsc --noEmit",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "studio": "prisma studio",
+    "seed": "prisma db seed"
   },
   "devDependencies": {
-    "@flowmarket/config": "workspace:*"
+    "@flowmarket/config": "workspace:*",
+    "@types/node": "^26.5.0",
+    "@types/pg": "^8.23.1",
+    "dotenv": "^17.4.2",
+    "prisma": "7.10.0",
+    "tsx": "^4.23.13"
   },
   "dependencies": {
-    "@prisma/client": "^7.10.0"
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "pg": "^8.23.0"
   }
 }

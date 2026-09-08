@@ -16,7 +16,7 @@ out/
 !.env.example
 
 # prisma
-packages/database/generated/
+packages/database/src/generated/
 
 # logs
 *.log
