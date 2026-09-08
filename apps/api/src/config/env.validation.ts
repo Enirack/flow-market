@@ -9,6 +9,8 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
+  MEILI_HOST: z.string().default('http://localhost:7700'),
+  MEILI_MASTER_KEY: z.string().min(1, 'MEILI_MASTER_KEY is required'),
 });
 
 export type Env = z.infer<typeof envSchema>;

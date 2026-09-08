@@ -11,8 +11,13 @@ import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CategoriesModule } from './modules/categories/categories.module';
+import { FavoritesModule } from './modules/favorites/favorites.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { ServicesModule } from './modules/services/services.module';
 import { UsersModule } from './modules/users/users.module';
+import { RedisModule } from './redis/redis.module';
+import { SearchModule } from './search/search.module';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -35,10 +40,15 @@ const isProduction = process.env.NODE_ENV === 'production';
       throttlers: [{ ttl: 60_000, limit: 100 }],
     }),
     DatabaseModule,
+    RedisModule,
+    SearchModule,
     HealthModule,
     AuthModule,
     UsersModule,
     ProvidersModule,
+    CategoriesModule,
+    ServicesModule,
+    FavoritesModule,
   ],
   controllers: [AppController],
   providers: [

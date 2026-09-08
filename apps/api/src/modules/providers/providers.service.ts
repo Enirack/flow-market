@@ -1,12 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 import type { CreateProviderDto } from './dto/create-provider.dto';
 import type { ReviewVerificationDto } from './dto/review-verification.dto';
 import type { UpdateProviderDto } from './dto/update-provider.dto';
 
+const PROFILE_CACHE_TTL_SECONDS = 60;
+
 @Injectable()
 export class ProvidersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async onboard(userId: string, dto: CreateProviderDto) {
     const [existingForUser, existingSlug] = await Promise.all([
@@ -39,15 +45,27 @@ export class ProvidersService {
   }
 
   async getBySlug(slug: string) {
+    const cacheKey = `provider:${slug}`;
+    const cached = await this.redis.get(cacheKey);
+    if (cached) return cached;
+
     const provider = await this.prisma.client.provider.findUnique({
       where: { slug },
-      include: { user: { include: { profile: true } } },
+      include: {
+        user: { include: { profile: true } },
+        services: {
+          where: { status: 'PUBLISHED' },
+          include: { images: { orderBy: { position: 'asc' }, take: 1 }, category: true },
+        },
+        availabilities: { where: { type: 'RECURRING' } },
+      },
     });
 
     if (!provider || !provider.isActive) {
       throw new NotFoundException('Provider not found');
     }
 
+    await this.redis.set(cacheKey, provider, PROFILE_CACHE_TTL_SECONDS);
     return provider;
   }
 

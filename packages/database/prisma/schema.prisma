@@ -204,6 +204,7 @@ model User {
   conversationsAsProvider Conversation[]      @relation("ConversationProvider")
   refreshTokens           RefreshToken[]
   verificationTokens      VerificationToken[]
+  favorites               Favorite[]
 
   @@index([role])
   @@index([status])
@@ -335,6 +336,7 @@ model Service {
   options      ServiceOption[]
   bookingItems BookingItem[]
   coupons      Coupon[]
+  favorites    Favorite[]
 
   @@index([providerId])
   @@index([categoryId, status])
@@ -612,6 +614,18 @@ model Coupon {
 
   @@index([code])
   @@index([providerId])
+}
+
+model Favorite {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String   @db.Uuid
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, serviceId])
+  @@index([userId])
 }
 
 // ==============================================================================

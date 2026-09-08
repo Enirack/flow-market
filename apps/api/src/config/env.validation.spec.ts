@@ -6,6 +6,7 @@ describe('validateEnv', () => {
     DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
     REDIS_URL: 'redis://localhost:6379',
     JWT_ACCESS_SECRET: 'test-secret-key-of-sufficient-length',
+    MEILI_MASTER_KEY: 'test-master-key',
   };
 
   it('applies defaults for optional variables', () => {

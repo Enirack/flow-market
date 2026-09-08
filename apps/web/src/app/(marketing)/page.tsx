@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 import { Button, Card, CardDescription, CardHeader, CardTitle } from '@flowmarket/ui';
-import { mockCategories, mockServices } from '@/lib/mock-data';
+import { getCategories, searchServices } from '@/lib/api';
 import { ServiceCard } from '@/components/service-card';
 
 const VALUE_PROPS = [
@@ -22,7 +22,12 @@ const VALUE_PROPS = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [categories, popularServices] = await Promise.all([
+    getCategories(),
+    searchServices({ sort: 'rating', limit: 3 }),
+  ]);
+
   return (
     <>
       <section className="mx-auto max-w-6xl px-6 py-24 text-center">
@@ -46,13 +51,14 @@ export default function HomePage() {
         </div>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-          {mockCategories.map((category) => (
-            <span
-              key={category}
-              className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+          {categories.map((category) => (
+            <Link
+              key={category.slug}
+              href={`/marketplace?category=${category.slug}`}
+              className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
             >
-              {category}
-            </span>
+              {category.name}
+            </Link>
           ))}
         </div>
       </section>
@@ -73,28 +79,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Services populaires</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Une sélection de services demandés par la communauté.
-            </p>
+      {popularServices.hits.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 py-20">
+          <div className="mb-8 flex items-end justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight">Services populaires</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Une sélection de services demandés par la communauté.
+              </p>
+            </div>
+            <Button variant="ghost" asChild>
+              <Link href="/marketplace">
+                Voir tout
+                <ArrowRight />
+              </Link>
+            </Button>
           </div>
-          <Button variant="ghost" asChild>
-            <Link href="/marketplace">
-              Voir tout
-              <ArrowRight />
-            </Link>
-          </Button>
-        </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {mockServices.slice(0, 3).map((service) => (
-            <ServiceCard key={service.slug} service={service} />
-          ))}
-        </div>
-      </section>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {popularServices.hits.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }
