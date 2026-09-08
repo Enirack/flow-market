@@ -41,4 +41,4 @@ Le jeu de données de démonstration (`prisma/seed.ts`) crée un admin, un clien
 prestataire avec 2 services publiés, un abonnement PRO, un booking terminé avec
 commande, paiement et avis. Identifiants : `admin@flowmarket.dev` /
 `client@flowmarket.dev` / `provider@flowmarket.dev`, mot de passe `Password123!`
-(hash de démonstration uniquement — le hashing de production arrive en Phase 3).
+(hashé avec Argon2 via `@flowmarket/auth`, comme en production).

@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
-  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -12,7 +11,7 @@
     "./styles/globals.css": "./src/styles/globals.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

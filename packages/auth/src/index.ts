@@ -1,1 +1,3 @@
-// Placeholder — stratégies d'authentification introduites en Phase 3.
+export * from './password';
+export * from './tokens';
+export * from './jwt';

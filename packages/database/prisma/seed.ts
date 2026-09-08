@@ -1,23 +1,12 @@
-import { randomBytes, scryptSync } from 'node:crypto';
+import { hashPassword } from '@flowmarket/auth';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
-
-/**
- * Hash de mot de passe simplifié pour les données de démonstration uniquement.
- * Le module d'authentification (Phase 3) définira le hashing de production (Argon2).
- * Mot de passe pour tous les comptes de seed : "Password123!"
- */
-function seedPasswordHash(password: string): string {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(password, salt, 64).toString('hex');
-  return `scrypt:${salt}:${hash}`;
-}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const passwordHash = seedPasswordHash('Password123!');
+  const passwordHash = await hashPassword('Password123!');
 
   // --- Catégories ---
   const webDev = await prisma.category.create({

@@ -5,6 +5,7 @@ describe('validateEnv', () => {
   const base = {
     DATABASE_URL: 'postgresql://user:pass@localhost:5432/db',
     REDIS_URL: 'redis://localhost:6379',
+    JWT_ACCESS_SECRET: 'test-secret-key-of-sufficient-length',
   };
 
   it('applies defaults for optional variables', () => {
