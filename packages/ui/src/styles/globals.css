@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens placeholder — le design system complet (couleurs, typographie,
+ * espacements, ombres) est construit en Phase 4. Ce fichier ne fournit que la
+ * fondation technique nécessaire pour que Tailwind fonctionne dans les apps.
+ */
+@theme {
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  @apply bg-white text-neutral-900 antialiased;
+}

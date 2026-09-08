@@ -1,1 +1,1 @@
-// Placeholder — design system introduit en Phase 4.
+export { cn } from './lib/cn';
