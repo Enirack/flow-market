@@ -38,3 +38,8 @@ Thumbs.db
 # misc
 *.tsbuildinfo
 .eslintcache
+
+# fichiers auto-generes par `next dev`/`next build` (Next.js 16) -
+# non pertinents pour l'historique du projet, jamais commit
+apps/*/AGENTS.md
+apps/*/CLAUDE.md

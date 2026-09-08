@@ -1,14 +1,28 @@
-/**
- * Layout de l'espace prestataire.
- * La protection de route (rôle PROVIDER) sera ajoutée en Phase 3.
- */
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { CalendarDays, LayoutDashboard, Settings, ShoppingBag, Wallet } from 'lucide-react';
+import { SidebarNav } from '@flowmarket/ui';
+
+const NAV_ITEMS = [
+  { href: '/provider', label: 'Vue d’ensemble', icon: <LayoutDashboard /> },
+  { href: '/provider/services', label: 'Mes services', icon: <ShoppingBag /> },
+  { href: '/provider/bookings', label: 'Réservations', icon: <CalendarDays /> },
+  { href: '/provider/earnings', label: 'Revenus', icon: <Wallet /> },
+  { href: '/provider/settings', label: 'Paramètres', icon: <Settings /> },
+];
+
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
   return (
-    <div className="flex min-h-full">
-      <aside className="w-56 shrink-0 border-r border-neutral-200 p-4">
-        <nav className="flex flex-col gap-2 text-sm">
-          <span className="font-medium text-neutral-900">Espace prestataire</span>
-        </nav>
+    <div className="mx-auto flex min-h-screen max-w-6xl">
+      <aside className="hidden w-56 shrink-0 border-r border-border p-4 md:block">
+        <Link href="/" className="mb-6 block text-lg font-semibold">
+          FlowMarket
+        </Link>
+        <SidebarNav items={NAV_ITEMS} activeHref={pathname} linkComponent={Link} />
       </aside>
       <div className="flex-1 p-6">{children}</div>
     </div>

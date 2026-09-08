@@ -1,3 +1,3 @@
-const { base } = require('@flowmarket/config/eslint-preset');
+const { base, react } = require('@flowmarket/config/eslint-preset');
 
-module.exports = [...base];
+module.exports = [...base, ...react];
