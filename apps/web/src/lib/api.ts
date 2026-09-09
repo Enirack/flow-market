@@ -165,3 +165,53 @@ export function register(input: {
     body: JSON.stringify(input),
   });
 }
+
+export function getAvailableSlots(serviceId: string, date: string): Promise<string[]> {
+  const query = new URLSearchParams({ serviceId, date });
+  return apiFetch(`/availability/slots?${query.toString()}`, { cache: 'no-store' });
+}
+
+export interface BookingSummary {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  status: string;
+  cancellationReason: string | null;
+  items: { service: { title: string }; serviceOption: { name: string } | null }[];
+  order: { totalAmount: string; currency: string; status: string } | null;
+  provider?: { businessName: string; slug: string };
+  client?: { profile: { firstName: string; lastName: string } | null };
+}
+
+export function createBooking(input: {
+  serviceId: string;
+  scheduledAt: string;
+  optionIds?: string[];
+  notes?: string;
+}): Promise<{ booking: BookingSummary }> {
+  return authedFetch('/bookings', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function getMyBookings(): Promise<BookingSummary[]> {
+  return authedFetch('/bookings/me', { cache: 'no-store' });
+}
+
+export function getProviderBookings(): Promise<BookingSummary[]> {
+  return authedFetch('/bookings/provider/me', { cache: 'no-store' });
+}
+
+export function confirmBooking(id: string): Promise<void> {
+  return authedFetch(`/bookings/${id}/confirm`, { method: 'PATCH' });
+}
+
+export function rejectBooking(id: string, reason?: string): Promise<void> {
+  return authedFetch(`/bookings/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) });
+}
+
+export function completeBooking(id: string): Promise<void> {
+  return authedFetch(`/bookings/${id}/complete`, { method: 'PATCH' });
+}
+
+export function cancelBooking(id: string, reason?: string): Promise<void> {
+  return authedFetch(`/bookings/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) });
+}

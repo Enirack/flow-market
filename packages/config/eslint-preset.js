@@ -41,6 +41,12 @@ const base = tseslint.config(
 );
 
 /** Ajout pour les packages/apps contenant du JSX (composants React). */
-const react = tseslint.config(reactHooks.configs.flat.recommended, jsxA11y.flatConfigs.recommended);
+const react = tseslint.config(reactHooks.configs.flat.recommended, jsxA11y.flatConfigs.recommended, {
+  rules: {
+    // Le classique "fetch au montage" (useEffect + setState) reste légitime
+    // tant que le projet n'utilise pas de librairie de data-fetching dédiée.
+    'react-hooks/set-state-in-effect': 'off',
+  },
+});
 
 module.exports = { base, react };

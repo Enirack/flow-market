@@ -11,13 +11,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from '@flowmarket/ui';
 import { ApiError, getServiceBySlug } from '@/lib/api';
+import { BookingDialog } from '@/components/booking-dialog';
 import { FavoriteButton } from '@/components/favorite-button';
 
 interface ServicePageProps {
@@ -156,7 +156,7 @@ export default async function ServiceDetailPage({ params }: ServicePageProps) {
                 </span>
                 {providerName}
               </Link>
-              <Button size="lg">Réserver ce service</Button>
+              <BookingDialog serviceId={service.id} serviceTitle={service.title} options={service.options} />
               <p className="text-center text-xs text-muted-foreground">
                 Vous ne serez débité qu&apos;après confirmation.
               </p>

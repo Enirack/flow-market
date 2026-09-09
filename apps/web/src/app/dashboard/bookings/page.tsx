@@ -1,5 +1,107 @@
-import { ComingSoon } from '@/components/coming-soon';
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  EmptyState,
+  Skeleton,
+} from '@flowmarket/ui';
+import { type BookingSummary, cancelBooking, getMyBookings } from '@/lib/api';
+
+const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive' | 'success'> = {
+  PENDING: 'outline',
+  CONFIRMED: 'default',
+  IN_PROGRESS: 'default',
+  COMPLETED: 'success',
+  CANCELLED: 'destructive',
+  DISPUTED: 'destructive',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmée',
+  IN_PROGRESS: 'En cours',
+  COMPLETED: 'Terminée',
+  CANCELLED: 'Annulée',
+  DISPUTED: 'Litige',
+};
 
 export default function DashboardBookingsPage() {
-  return <ComingSoon title="Réservations" />;
+  const [bookings, setBookings] = useState<BookingSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      setBookings(await getMyBookings());
+    } catch {
+      setError('Connectez-vous pour voir vos réservations.');
+    }
+  }
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  async function handleCancel(id: string) {
+    await cancelBooking(id, 'Annulée par le client');
+    void load();
+  }
+
+  if (error) {
+    return <EmptyState title={error} action={<Button asChild><Link href="/login">Se connecter</Link></Button>} />;
+  }
+
+  if (!bookings) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  if (bookings.length === 0) {
+    return (
+      <EmptyState
+        title="Aucune réservation"
+        description="Explorez la marketplace pour réserver votre premier service."
+        action={<Button asChild><Link href="/marketplace">Explorer les services</Link></Button>}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-xl font-semibold">Mes réservations</h1>
+      {bookings.map((booking) => (
+        <Card key={booking.id}>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+            <div>
+              <p className="font-medium">{booking.items[0]?.service.title}</p>
+              <p className="text-sm text-muted-foreground">
+                {new Date(booking.scheduledAt).toLocaleString('fr-FR')}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant={STATUS_VARIANT[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
+              {booking.order && (
+                <span className="text-sm font-medium">
+                  {Number(booking.order.totalAmount).toLocaleString('fr-FR')} {booking.order.currency}
+                </span>
+              )}
+              {['PENDING', 'CONFIRMED'].includes(booking.status) && (
+                <Button variant="outline" size="sm" onClick={() => handleCancel(booking.id)}>
+                  Annuler
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }

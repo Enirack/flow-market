@@ -1,6 +1,16 @@
 @import 'tailwindcss';
 
 /*
+ * La détection automatique de sources de Tailwind v4 ne remonte pas
+ * toujours jusqu'aux packages partagés dans un monorepo pnpm (le fichier
+ * contenant `@import "tailwindcss"` vit ici, mais les classes utilisées
+ * dans les composants de ce package n'étaient pas détectées). On force
+ * explicitement l'inclusion du dossier des composants.
+ */
+@source "../components/**/*.{ts,tsx}";
+@source "../lib/**/*.{ts,tsx}";
+
+/*
  * Design tokens FlowMarket — palette neutre + accent indigo, conforme
  * à la convention de variables shadcn/ui (utilisées via bg-background,
  * text-foreground, bg-primary, etc.). Mode sombre via la classe `.dark`

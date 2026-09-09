@@ -11,6 +11,8 @@ import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { AvailabilityModule } from './modules/availability/availability.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { ProvidersModule } from './modules/providers/providers.module';
@@ -49,6 +51,8 @@ const isProduction = process.env.NODE_ENV === 'production';
     CategoriesModule,
     ServicesModule,
     FavoritesModule,
+    AvailabilityModule,
+    BookingsModule,
   ],
   controllers: [AppController],
   providers: [
