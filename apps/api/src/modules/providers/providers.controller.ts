@@ -18,16 +18,34 @@ export class ProvidersController {
     return this.providersService.onboard(user.sub, dto);
   }
 
-  @Public()
-  @Get(':slug')
-  getBySlug(@Param('slug') slug: string) {
-    return this.providersService.getBySlug(slug);
+  @Roles('PROVIDER')
+  @Get('me')
+  getMe(@CurrentUser() user: AccessTokenPayload) {
+    return this.providersService.getMe(user.sub);
   }
 
   @Roles('PROVIDER')
   @Patch('me')
   updateMe(@CurrentUser() user: AccessTokenPayload, @Body() dto: UpdateProviderDto) {
     return this.providersService.updateMe(user.sub, dto);
+  }
+
+  @Roles('PROVIDER')
+  @Get('me/stats')
+  getMyStats(@CurrentUser() user: AccessTokenPayload) {
+    return this.providersService.getMyStats(user.sub);
+  }
+
+  @Roles('PROVIDER')
+  @Get('me/recent-bookings')
+  getRecentBookings(@CurrentUser() user: AccessTokenPayload) {
+    return this.providersService.getRecentBookings(user.sub);
+  }
+
+  @Public()
+  @Get(':slug')
+  getBySlug(@Param('slug') slug: string) {
+    return this.providersService.getBySlug(slug);
   }
 
   @Roles('ADMIN')

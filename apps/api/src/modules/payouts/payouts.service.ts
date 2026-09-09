@@ -18,6 +18,15 @@ export class PayoutsService {
     return (process.env.PAYMENT_PROVIDER_MODE ?? 'mock') !== 'live';
   }
 
+  async getMyBalance(userId: string) {
+    const provider = await this.prisma.client.provider.findUnique({ where: { userId }, include: { balance: true } });
+    if (!provider) throw new NotFoundException('No provider profile for this account');
+
+    return (
+      provider.balance ?? { providerId: provider.id, availableAmount: 0, pendingAmount: 0, currency: 'XOF' }
+    );
+  }
+
   async request(userId: string, dto: RequestPayoutDto) {
     const provider = await this.prisma.client.provider.findUnique({ where: { userId }, include: { balance: true } });
     if (!provider) throw new NotFoundException('No provider profile for this account');

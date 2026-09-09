@@ -69,6 +69,15 @@ export class ProvidersService {
     return provider;
   }
 
+  async getMe(userId: string) {
+    const provider = await this.prisma.client.provider.findUnique({
+      where: { userId },
+      include: { verification: true, balance: true },
+    });
+    if (!provider) throw new NotFoundException('No provider profile for this account');
+    return provider;
+  }
+
   async updateMe(userId: string, dto: UpdateProviderDto) {
     const provider = await this.prisma.client.provider.findUnique({ where: { userId } });
     if (!provider) {
@@ -76,6 +85,52 @@ export class ProvidersService {
     }
 
     return this.prisma.client.provider.update({ where: { userId }, data: dto });
+  }
+
+  async getMyStats(userId: string) {
+    const provider = await this.prisma.client.provider.findUnique({ where: { userId } });
+    if (!provider) throw new NotFoundException('No provider profile for this account');
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [revenue, upcomingBookings, publishedServices] = await Promise.all([
+      this.prisma.client.payment.aggregate({
+        where: {
+          status: 'SUCCEEDED',
+          createdAt: { gte: thirtyDaysAgo },
+          order: { booking: { providerId: provider.id } },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.client.booking.count({
+        where: {
+          providerId: provider.id,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          scheduledAt: { gte: new Date() },
+        },
+      }),
+      this.prisma.client.service.count({ where: { providerId: provider.id, status: 'PUBLISHED' } }),
+    ]);
+
+    return {
+      revenue30d: revenue._sum.amount ?? 0,
+      upcomingBookings,
+      publishedServices,
+      ratingAvg: provider.ratingAvg,
+      ratingCount: provider.ratingCount,
+    };
+  }
+
+  async getRecentBookings(userId: string, limit = 5) {
+    const provider = await this.prisma.client.provider.findUnique({ where: { userId } });
+    if (!provider) throw new NotFoundException('No provider profile for this account');
+
+    return this.prisma.client.booking.findMany({
+      where: { providerId: provider.id },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: { items: { include: { service: true } }, client: { include: { profile: true } } },
+    });
   }
 
   async reviewVerification(providerId: string, dto: ReviewVerificationDto, adminId: string) {

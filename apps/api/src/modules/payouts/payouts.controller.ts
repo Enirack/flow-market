@@ -24,6 +24,12 @@ export class PayoutsController {
     return this.payoutsService.listMine(user.sub);
   }
 
+  @Roles('PROVIDER')
+  @Get('balance')
+  getMyBalance(@CurrentUser() user: AccessTokenPayload) {
+    return this.payoutsService.getMyBalance(user.sub);
+  }
+
   @Roles('ADMIN')
   @Get()
   listAll(@Query('status') status?: PayoutStatus) {

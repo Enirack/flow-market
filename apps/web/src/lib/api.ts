@@ -233,3 +233,176 @@ export function simulateMockPayment(mockPaymentId: string, outcome: 'succeeded' 
     body: JSON.stringify({ outcome }),
   });
 }
+
+// --- Prestataire : services ---
+
+export interface ProviderService {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  priceType: string;
+  basePrice: string;
+  currency: string;
+  durationMinutes: number | null;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  category: { id: string; name: string };
+  images: { id: string; url: string; position: number }[];
+  options: { id: string; name: string; priceDelta: string }[];
+}
+
+export function getMyServices(): Promise<ProviderService[]> {
+  return authedFetch('/services/me', { cache: 'no-store' });
+}
+
+export function createService(input: {
+  categoryId: string;
+  title: string;
+  description: string;
+  priceType: string;
+  basePrice: number;
+  currency?: string;
+  durationMinutes?: number;
+}): Promise<ProviderService> {
+  return authedFetch('/services', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateService(id: string, input: Partial<Parameters<typeof createService>[0]>): Promise<ProviderService> {
+  return authedFetch(`/services/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function publishService(id: string): Promise<ProviderService> {
+  return authedFetch(`/services/${id}/publish`, { method: 'PATCH' });
+}
+
+export function archiveService(id: string): Promise<ProviderService> {
+  return authedFetch(`/services/${id}/archive`, { method: 'PATCH' });
+}
+
+export function deleteService(id: string): Promise<void> {
+  return authedFetch(`/services/${id}`, { method: 'DELETE' });
+}
+
+export function addServiceImage(id: string, url: string): Promise<ProviderService['images']> {
+  return authedFetch(`/services/${id}/images`, { method: 'POST', body: JSON.stringify({ url }) });
+}
+
+export function removeServiceImage(id: string, imageId: string): Promise<void> {
+  return authedFetch(`/services/${id}/images/${imageId}`, { method: 'DELETE' });
+}
+
+export function addServiceOption(
+  id: string,
+  input: { name: string; priceDelta: number },
+): Promise<ProviderService['options']> {
+  return authedFetch(`/services/${id}/options`, { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function removeServiceOption(id: string, optionId: string): Promise<void> {
+  return authedFetch(`/services/${id}/options/${optionId}`, { method: 'DELETE' });
+}
+
+// --- Prestataire : revenus & virements ---
+
+export interface ProviderBalance {
+  availableAmount: string;
+  pendingAmount: string;
+  currency: string;
+}
+
+export interface Payout {
+  id: string;
+  amount: string;
+  currency: string;
+  status: string;
+  method: string;
+  rejectionReason: string | null;
+  requestedAt: string;
+  processedAt: string | null;
+}
+
+export function getMyBalance(): Promise<ProviderBalance> {
+  return authedFetch('/payouts/balance', { cache: 'no-store' });
+}
+
+export function getMyPayouts(): Promise<Payout[]> {
+  return authedFetch('/payouts/me', { cache: 'no-store' });
+}
+
+export function requestPayout(input: {
+  amount: number;
+  method: 'BANK_TRANSFER' | 'MOBILE_MONEY';
+  destinationDetails: Record<string, string>;
+}): Promise<Payout> {
+  return authedFetch('/payouts', { method: 'POST', body: JSON.stringify(input) });
+}
+
+// --- Prestataire : profil & disponibilités ---
+
+export interface ProviderMe {
+  businessName: string;
+  bio: string | null;
+  isActive: boolean;
+  verification: { status: string; rejectionReason: string | null } | null;
+}
+
+export function getProviderMe(): Promise<ProviderMe> {
+  return authedFetch('/providers/me', { cache: 'no-store' });
+}
+
+export interface ProviderStats {
+  revenue30d: string | number;
+  upcomingBookings: number;
+  publishedServices: number;
+  ratingAvg: string;
+  ratingCount: number;
+}
+
+export function getProviderStats(): Promise<ProviderStats> {
+  return authedFetch('/providers/me/stats', { cache: 'no-store' });
+}
+
+export interface ProviderRecentBooking {
+  id: string;
+  scheduledAt: string;
+  status: string;
+  items: { service: { title: string } }[];
+  client: { profile: { firstName: string; lastName: string } | null };
+}
+
+export function getProviderRecentBookings(): Promise<ProviderRecentBooking[]> {
+  return authedFetch('/providers/me/recent-bookings', { cache: 'no-store' });
+}
+
+export function updateProviderProfile(input: { businessName?: string; bio?: string }): Promise<ProviderMe> {
+  return authedFetch('/providers/me', { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export interface AvailabilityRule {
+  id: string;
+  type: 'RECURRING' | 'EXCEPTION';
+  weekday: number | null;
+  specificDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  isBlocked: boolean;
+}
+
+export function getMyAvailability(): Promise<AvailabilityRule[]> {
+  return authedFetch('/availability/me', { cache: 'no-store' });
+}
+
+export function createAvailability(input: {
+  type: 'RECURRING' | 'EXCEPTION';
+  weekday?: number;
+  specificDate?: string;
+  startTime?: string;
+  endTime?: string;
+  isBlocked?: boolean;
+}): Promise<AvailabilityRule> {
+  return authedFetch('/availability', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function removeAvailability(id: string): Promise<void> {
+  return authedFetch(`/availability/${id}`, { method: 'DELETE' });
+}
