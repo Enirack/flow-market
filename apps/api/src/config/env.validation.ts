@@ -11,6 +11,23 @@ export const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
   MEILI_HOST: z.string().default('http://localhost:7700'),
   MEILI_MASTER_KEY: z.string().min(1, 'MEILI_MASTER_KEY is required'),
+  API_PUBLIC_URL: z.string().default('http://localhost:4000'),
+  WEB_PUBLIC_URL: z.string().default('http://localhost:3000'),
+  // 'mock' (defaut) route les paiements vers le provider factice pour le developpement
+  // et les tests, sans jamais appeler de vraie API de paiement. 'live' l'interdit.
+  PAYMENT_PROVIDER_MODE: z.enum(['mock', 'live']).default('mock'),
+  STRIPE_SECRET_KEY: z.string().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  FLUTTERWAVE_SECRET_KEY: z.string().default(''),
+  FLUTTERWAVE_WEBHOOK_HASH: z.string().default(''),
+  CINETPAY_API_KEY: z.string().default(''),
+  CINETPAY_SITE_ID: z.string().default(''),
+  CINETPAY_TRANSFER_LOGIN: z.string().default(''),
+  CINETPAY_TRANSFER_PASSWORD: z.string().default(''),
+  PAYDUNYA_MASTER_KEY: z.string().default(''),
+  PAYDUNYA_PRIVATE_KEY: z.string().default(''),
+  PAYDUNYA_TOKEN: z.string().default(''),
+  PAYDUNYA_STORE_NAME: z.string().default('FlowMarket'),
 });
 
 export type Env = z.infer<typeof envSchema>;

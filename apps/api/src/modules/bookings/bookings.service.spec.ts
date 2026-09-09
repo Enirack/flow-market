@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityService } from '../availability/availability.service';
+import type { PaymentsService } from '../payments/payments.service';
 import type { PrismaService } from '../../database/prisma.service';
 import { BookingsService } from './bookings.service';
 
@@ -49,9 +50,11 @@ describe('BookingsService.create', () => {
       },
     };
     availabilityMock = { isWithinAvailability: vi.fn().mockResolvedValue(true) };
+    const paymentsMock = { releaseHoldForBooking: vi.fn().mockResolvedValue(undefined) };
     service = new BookingsService(
       prismaMock as unknown as PrismaService,
       availabilityMock as unknown as AvailabilityService,
+      paymentsMock as unknown as PaymentsService,
     );
   });
 

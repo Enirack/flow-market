@@ -178,7 +178,9 @@ export interface BookingSummary {
   status: string;
   cancellationReason: string | null;
   items: { service: { title: string }; serviceOption: { name: string } | null }[];
-  order: { totalAmount: string; currency: string; status: string } | null;
+  order:
+    | { id: string; totalAmount: string; currency: string; status: string; payments?: { status: string }[] }
+    | null;
   provider?: { businessName: string; slug: string };
   client?: { profile: { firstName: string; lastName: string } | null };
 }
@@ -214,4 +216,20 @@ export function completeBooking(id: string): Promise<void> {
 
 export function cancelBooking(id: string, reason?: string): Promise<void> {
   return authedFetch(`/bookings/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) });
+}
+
+export interface PaymentIntentResponse {
+  payment: { id: string; provider: string; status: string };
+  clientPayload: { checkoutUrl?: string; clientSecret?: string; mockPaymentId?: string };
+}
+
+export function createPaymentIntent(orderId: string): Promise<PaymentIntentResponse> {
+  return authedFetch(`/payments/orders/${orderId}/intent`, { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function simulateMockPayment(mockPaymentId: string, outcome: 'succeeded' | 'failed'): Promise<void> {
+  return authedFetch(`/payments/mock/${mockPaymentId}/simulate`, {
+    method: 'POST',
+    body: JSON.stringify({ outcome }),
+  });
 }

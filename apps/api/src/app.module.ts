@@ -15,6 +15,8 @@ import { AvailabilityModule } from './modules/availability/availability.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { PayoutsModule } from './modules/payouts/payouts.module';
 import { ProvidersModule } from './modules/providers/providers.module';
 import { ServicesModule } from './modules/services/services.module';
 import { UsersModule } from './modules/users/users.module';
@@ -53,6 +55,8 @@ const isProduction = process.env.NODE_ENV === 'production';
     FavoritesModule,
     AvailabilityModule,
     BookingsModule,
+    PaymentsModule,
+    PayoutsModule,
   ],
   controllers: [AppController],
   providers: [

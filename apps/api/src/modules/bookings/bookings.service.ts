@@ -9,6 +9,7 @@ import { PLATFORM_FEE_RATE } from '../../common/constants';
 import { PrismaService } from '../../database/prisma.service';
 import { hasSchedulingConflict } from '../../common/utils/booking-conflict.util';
 import { ACTIVE_BOOKING_STATUSES, AvailabilityService } from '../availability/availability.service';
+import { PaymentsService } from '../payments/payments.service';
 import type { CancelBookingDto } from './dto/cancel-booking.dto';
 import type { CreateBookingDto } from './dto/create-booking.dto';
 
@@ -17,6 +18,7 @@ export class BookingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
+    private readonly payments: PaymentsService,
   ) {}
 
   async create(clientId: string, dto: CreateBookingDto) {
@@ -132,7 +134,11 @@ export class BookingsService {
     return this.prisma.client.booking.findMany({
       where: { clientId },
       orderBy: { scheduledAt: 'desc' },
-      include: { items: { include: { service: true, serviceOption: true } }, order: true, provider: true },
+      include: {
+        items: { include: { service: true, serviceOption: true } },
+        order: { include: { payments: { select: { status: true } } } },
+        provider: true,
+      },
     });
   }
 
@@ -203,10 +209,16 @@ export class BookingsService {
       throw new BadRequestException('Only confirmed or in-progress bookings can be completed');
     }
 
-    return this.prisma.client.$transaction([
+    const result = await this.prisma.client.$transaction([
       this.prisma.client.booking.update({ where: { id: bookingId }, data: { status: 'COMPLETED' } }),
       this.prisma.client.order.update({ where: { bookingId }, data: { status: 'COMPLETED' } }),
     ]);
+
+    // Libere le solde du prestataire (en attente -> disponible) si la commande a ete payee.
+    // Volontairement hors transaction : ne doit jamais faire echouer la finalisation de la prestation.
+    await this.payments.releaseHoldForBooking(bookingId);
+
+    return result;
   }
 
   async cancel(clientId: string, bookingId: string, dto: CancelBookingDto) {

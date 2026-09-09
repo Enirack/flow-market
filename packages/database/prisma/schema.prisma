@@ -70,6 +70,8 @@ enum PaymentProviderName {
   FLUTTERWAVE
   CINETPAY
   PAYDUNYA
+  /** Provider factice utilise en developpement/tests, jamais en production (voir PAYMENT_PROVIDER_MODE). */
+  MOCK
 }
 
 enum PaymentStatus {
@@ -485,6 +487,8 @@ model Payment {
   currency          String              @default("XOF")
   status            PaymentStatus       @default(PENDING)
   idempotencyKey    String              @unique
+  /** Donnees a renvoyer au client pour finaliser le paiement (clientSecret Stripe, lien de paiement, etc). */
+  clientPayload     Json?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
