@@ -1,10 +1,67 @@
 # FlowMarket
 
-FlowMarket est une plateforme SaaS marketplace permettant à des prestataires de
-services de publier leurs offres et à des clients de les rechercher, réserver
-et payer en ligne.
+FlowMarket est une plateforme SaaS marketplace qui connecte des prestataires
+de services (design, développement, conseil, artisanat...) à des clients en
+Afrique de l'Ouest. Les prestataires publient leurs offres, gèrent leurs
+disponibilités et leurs revenus ; les clients recherchent, réservent et
+paient en ligne (carte, Mobile Money) ; une équipe d'administration modère
+la plateforme et supervise la finance.
 
 **Auteur / Propriétaire du projet : Enirack**
+
+## Fonctionnalités
+
+### Marketplace client (`apps/web`)
+
+- Recherche et filtrage des services (catégories, prix, note) via
+  Meilisearch, pages prestataire et service avec galerie et avis
+- Réservation avec gestion des créneaux et détection de conflits
+  d'agenda, panier et commande multi-services
+- Paiement en ligne multi-provider : Stripe, Flutterwave, CinetPay,
+  PayDunya (carte bancaire et Mobile Money), avec mode simulation en
+  développement
+- Espace client : suivi des réservations, paiement différé, annulation,
+  avis après prestation, signalement de litige
+- Authentification complète (inscription, connexion, mot de passe oublié,
+  vérification d'email)
+
+### Tableau de bord prestataire (`apps/web/provider`)
+
+- Gestion du catalogue de services (création, publication, archivage,
+  images)
+- Agenda et disponibilités, suivi des réservations entrantes
+- Suivi des revenus, solde disponible et demandes de virement
+
+### Back-office administrateur (`apps/admin`)
+
+- Vue d'ensemble : revenus, commissions, utilisateurs actifs, litiges
+  ouverts, virements en attente
+- Gestion des utilisateurs (suspension / réactivation)
+- Vérification des prestataires et dépublication forcée de services
+  non conformes
+- Modération des avis clients (masquage)
+- Résolution des litiges (en faveur du client ou rejet, avec motif)
+- Supervision financière : approbation ou rejet des virements
+  prestataires
+
+## Captures d'écran
+
+<!-- markdownlint-disable MD033 -->
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/marketplace-home.jpg" alt="Accueil marketplace" /><br/><sub>Accueil marketplace</sub></td>
+    <td width="50%"><img src="docs/screenshots/service-detail.jpg" alt="Fiche service" /><br/><sub>Fiche service</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/client-bookings.jpg" alt="Réservations client" /><br/><sub>Réservations client (avis / litige)</sub></td>
+    <td width="50%"><img src="docs/screenshots/provider-dashboard.jpg" alt="Tableau de bord prestataire" /><br/><sub>Tableau de bord prestataire</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/admin-overview.jpg" alt="Vue d'ensemble admin" /><br/><sub>Back-office — vue d'ensemble</sub></td>
+    <td width="50%"><img src="docs/screenshots/admin-disputes.jpg" alt="Litiges admin" /><br/><sub>Back-office — résolution de litiges</sub></td>
+  </tr>
+</table>
+<!-- markdownlint-enable MD033 -->
 
 ## Stack technique
 
@@ -68,7 +125,7 @@ pnpm dev
 ## Scripts disponibles
 
 | Commande         | Description                                         |
-| ---------------- | --------------------------------------------------- |
+| ---------------- | ----------------------------------------------------- |
 | `pnpm dev`       | Lance toutes les applications en mode développement |
 | `pnpm build`     | Build de production de l'ensemble du monorepo       |
 | `pnpm lint`      | Lint de l'ensemble du monorepo                      |
