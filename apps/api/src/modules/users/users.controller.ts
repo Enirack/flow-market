@@ -1,6 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import type { AccessTokenPayload } from '@flowmarket/auth';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { AdminListUsersDto } from './dto/admin-list-users.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -22,5 +24,23 @@ export class UsersController {
   @Delete('me')
   async deleteAccount(@CurrentUser() user: AccessTokenPayload): Promise<void> {
     await this.usersService.deleteAccount(user.sub);
+  }
+
+  @Roles('ADMIN')
+  @Get('admin')
+  adminList(@Query() dto: AdminListUsersDto) {
+    return this.usersService.adminList(dto);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/:id/suspend')
+  adminSuspend(@Param('id') id: string) {
+    return this.usersService.adminSuspend(id);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/:id/reactivate')
+  adminReactivate(@Param('id') id: string) {
+    return this.usersService.adminReactivate(id);
   }
 }

@@ -4,6 +4,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AddServiceImageDto } from './dto/add-service-image.dto';
+import { AdminListServicesDto } from './dto/admin-list-services.dto';
 import { CreateServiceOptionDto } from './dto/create-service-option.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { SearchServicesDto } from './dto/search-services.dto';
@@ -103,6 +104,18 @@ export class ServicesController {
     @Param('optionId') optionId: string,
   ): Promise<void> {
     await this.servicesService.removeOption(user.sub, id, optionId);
+  }
+
+  @Roles('ADMIN')
+  @Get('admin')
+  adminList(@Query() dto: AdminListServicesDto) {
+    return this.servicesService.adminList(dto);
+  }
+
+  @Roles('ADMIN')
+  @Patch('admin/:id/unpublish')
+  adminUnpublish(@Param('id') id: string) {
+    return this.servicesService.adminUnpublish(id);
   }
 
   @Public()

@@ -406,3 +406,13 @@ export function createAvailability(input: {
 export function removeAvailability(id: string): Promise<void> {
   return authedFetch(`/availability/${id}`, { method: 'DELETE' });
 }
+
+// --- Avis & litiges ---
+
+export function createReview(input: { bookingId: string; rating: number; comment?: string }): Promise<void> {
+  return authedFetch('/reviews', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function createDispute(input: { bookingId: string; reason: string; details?: string }): Promise<void> {
+  return authedFetch('/disputes', { method: 'POST', body: JSON.stringify(input) });
+}

@@ -2,18 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Star } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
+  Input,
+  Label,
   Skeleton,
+  Textarea,
 } from '@flowmarket/ui';
 import {
   type BookingSummary,
   cancelBooking,
+  createDispute,
   createPaymentIntent,
+  createReview,
   getMyBookings,
   simulateMockPayment,
 } from '@/lib/api';
@@ -40,6 +51,15 @@ export default function DashboardBookingsPage() {
   const [bookings, setBookings] = useState<BookingSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [payingOrderId, setPayingOrderId] = useState<string | null>(null);
+  const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [disputeBookingId, setDisputeBookingId] = useState<string | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeDetails, setDisputeDetails] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -75,6 +95,58 @@ export default function DashboardBookingsPage() {
       }
     } finally {
       setPayingOrderId(null);
+    }
+  }
+
+  function openReview(bookingId: string) {
+    setReviewRating(5);
+    setReviewComment('');
+    setDialogError(null);
+    setReviewBookingId(bookingId);
+  }
+
+  async function handleSubmitReview() {
+    if (!reviewBookingId) return;
+    setSubmitting(true);
+    setDialogError(null);
+    try {
+      await createReview({
+        bookingId: reviewBookingId,
+        rating: reviewRating,
+        ...(reviewComment ? { comment: reviewComment } : {}),
+      });
+      setReviewedBookingIds((current) => new Set(current).add(reviewBookingId));
+      setReviewBookingId(null);
+    } catch (err) {
+      setDialogError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function openDispute(bookingId: string) {
+    setDisputeReason('');
+    setDisputeDetails('');
+    setDialogError(null);
+    setDisputeBookingId(bookingId);
+  }
+
+  async function handleSubmitDispute() {
+    if (!disputeBookingId || !disputeReason) return;
+    setSubmitting(true);
+    setDialogError(null);
+    try {
+      await createDispute({
+        bookingId: disputeBookingId,
+        reason: disputeReason,
+        ...(disputeDetails ? { details: disputeDetails } : {}),
+      });
+      setDisputeBookingId(null);
+      await load();
+    } catch (err) {
+      setDialogError(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -139,11 +211,87 @@ export default function DashboardBookingsPage() {
                     Annuler
                   </Button>
                 )}
+                {booking.status === 'COMPLETED' && !reviewedBookingIds.has(booking.id) && (
+                  <Button variant="outline" size="sm" onClick={() => openReview(booking.id)}>
+                    Laisser un avis
+                  </Button>
+                )}
+                {['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status) && (
+                  <Button variant="outline" size="sm" onClick={() => openDispute(booking.id)}>
+                    Signaler un problème
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         );
       })}
+
+      <Dialog open={reviewBookingId !== null} onOpenChange={(open) => !open && setReviewBookingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Laisser un avis</DialogTitle>
+          </DialogHeader>
+          {dialogError && <p className="text-sm text-destructive">{dialogError}</p>}
+          <div className="space-y-3">
+            <div>
+              <Label>Note</Label>
+              <div className="mt-1 flex gap-1">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button key={value} type="button" onClick={() => setReviewRating(value)}>
+                    <Star
+                      className={`size-6 ${value <= reviewRating ? 'fill-current text-amber-500' : 'text-muted-foreground'}`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="review-comment">Commentaire (optionnel)</Label>
+              <Textarea
+                id="review-comment"
+                rows={3}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button disabled={submitting} onClick={handleSubmitReview}>
+              {submitting ? 'Envoi…' : 'Publier l’avis'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={disputeBookingId !== null} onOpenChange={(open) => !open && setDisputeBookingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Signaler un problème</DialogTitle>
+          </DialogHeader>
+          {dialogError && <p className="text-sm text-destructive">{dialogError}</p>}
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="dispute-reason">Motif</Label>
+              <Input id="dispute-reason" value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="dispute-details">Détails (optionnel)</Label>
+              <Textarea
+                id="dispute-details"
+                rows={3}
+                value={disputeDetails}
+                onChange={(e) => setDisputeDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button disabled={submitting || !disputeReason} onClick={handleSubmitDispute}>
+              {submitting ? 'Envoi…' : 'Envoyer le signalement'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import type { AdminListProvidersDto } from './dto/admin-list-providers.dto';
 import type { CreateProviderDto } from './dto/create-provider.dto';
 import type { ReviewVerificationDto } from './dto/review-verification.dto';
 import type { UpdateProviderDto } from './dto/update-provider.dto';
@@ -131,6 +132,28 @@ export class ProvidersService {
       take: limit,
       include: { items: { include: { service: true } }, client: { include: { profile: true } } },
     });
+  }
+
+  async adminList(dto: AdminListProvidersDto) {
+    const where = dto.verificationStatus ? { verification: { status: dto.verificationStatus } } : {};
+
+    const [providers, total] = await Promise.all([
+      this.prisma.client.provider.findMany({
+        where,
+        include: { user: { include: { profile: true } }, verification: true, balance: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+      }),
+      this.prisma.client.provider.count({ where }),
+    ]);
+
+    return {
+      providers,
+      total,
+      page: dto.page,
+      totalPages: Math.max(1, Math.ceil(total / dto.limit)),
+    };
   }
 
   async reviewVerification(providerId: string, dto: ReviewVerificationDto, adminId: string) {

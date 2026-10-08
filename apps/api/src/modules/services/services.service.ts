@@ -5,6 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { SearchService, type ServiceSearchDocument } from '../../search/search.service';
 import type { AddServiceImageDto } from './dto/add-service-image.dto';
+import type { AdminListServicesDto } from './dto/admin-list-services.dto';
 import type { CreateServiceOptionDto } from './dto/create-service-option.dto';
 import type { CreateServiceDto } from './dto/create-service.dto';
 import type { SearchServicesDto } from './dto/search-services.dto';
@@ -95,6 +96,42 @@ export class ServicesService {
 
     const docs = await Promise.all(services.map((service) => this.toSearchDocument(service)));
     return this.searchService.reindexAll(docs);
+  }
+
+  async adminList(dto: AdminListServicesDto) {
+    const where = dto.status ? { status: dto.status } : {};
+
+    const [services, total] = await Promise.all([
+      this.prisma.client.service.findMany({
+        where,
+        include: { category: true, provider: true },
+        orderBy: { createdAt: 'desc' },
+        skip: (dto.page - 1) * dto.limit,
+        take: dto.limit,
+      }),
+      this.prisma.client.service.count({ where }),
+    ]);
+
+    return {
+      services,
+      total,
+      page: dto.page,
+      totalPages: Math.max(1, Math.ceil(total / dto.limit)),
+    };
+  }
+
+  async adminUnpublish(serviceId: string) {
+    const service = await this.prisma.client.service.findUnique({ where: { id: serviceId } });
+    if (!service) throw new NotFoundException('Service not found');
+
+    const updated = await this.prisma.client.service.update({
+      where: { id: serviceId },
+      data: { status: 'ARCHIVED' },
+    });
+
+    await this.searchService.removeService(serviceId);
+    await this.invalidateDetailCache(service.slug);
+    return updated;
   }
 
   async listMine(userId: string) {

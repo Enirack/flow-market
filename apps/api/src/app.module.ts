@@ -10,14 +10,17 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { DisputesModule } from './modules/disputes/disputes.module';
 import { FavoritesModule } from './modules/favorites/favorites.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PayoutsModule } from './modules/payouts/payouts.module';
 import { ProvidersModule } from './modules/providers/providers.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ServicesModule } from './modules/services/services.module';
 import { UsersModule } from './modules/users/users.module';
 import { RedisModule } from './redis/redis.module';
@@ -57,6 +60,9 @@ const isProduction = process.env.NODE_ENV === 'production';
     BookingsModule,
     PaymentsModule,
     PayoutsModule,
+    ReviewsModule,
+    DisputesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
