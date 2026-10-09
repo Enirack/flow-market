@@ -1,4 +1,12 @@
+import { timingSafeEqual } from 'node:crypto';
 import { WebhookSignatureError, type CreatePaymentIntentInput, type CreatePayoutInput, type CreateRefundInput, type PayoutResult, type PaymentIntentResult, type PaymentProviderAdapter, type RefundResult, type WebhookEvent, type WebhookVerificationInput } from '../types';
+
+/** Comparaison en temps constant : evite de fuiter le secret via le timing de `===`. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 export interface FlutterwaveProviderConfig {
   secretKey: string;
@@ -54,7 +62,7 @@ export class FlutterwaveProvider implements PaymentProviderAdapter {
 
   async verifyAndParseWebhook(input: WebhookVerificationInput): Promise<WebhookEvent> {
     const signature = input.headers['verif-hash'];
-    if (signature !== this.config.webhookHash) {
+    if (typeof signature !== 'string' || !safeEqual(signature, this.config.webhookHash)) {
       throw new WebhookSignatureError(this.name, 'verif-hash mismatch');
     }
 

@@ -1,0 +1,29 @@
+# Garde le contexte de build Docker petit et empeche toute fuite de secrets
+# locaux (.env) dans une image : le pruner copie le code source via `COPY . .`
+# avant `turbo prune`, donc tout ce qui ne doit jamais atterrir dans une image
+# doit etre exclu ici, pas seulement dans .gitignore.
+
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/playwright-report
+**/test-results
+
+.env
+.env.*
+!.env.example
+
+.git
+.github
+.vscode
+.claude
+
+**/*.log
+npm-debug.log*
+pnpm-debug.log*
+
+docker-compose.yml
+docker/README.md
