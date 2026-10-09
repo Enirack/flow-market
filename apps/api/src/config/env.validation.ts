@@ -28,6 +28,19 @@ export const envSchema = z.object({
   PAYDUNYA_PRIVATE_KEY: z.string().default(''),
   PAYDUNYA_TOKEN: z.string().default(''),
   PAYDUNYA_STORE_NAME: z.string().default('FlowMarket'),
+  // SMTP_HOST vide (defaut) => mode dev : les emails sont loggues au lieu
+  // d'etre envoyes, sans jamais appeler de vrai serveur SMTP.
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  // z.coerce.boolean() transformerait la chaine "false" en true (non-vide) ;
+  // on compare explicitement a la chaine attendue.
+  SMTP_SECURE: z
+    .string()
+    .default('false')
+    .transform((value) => value === 'true'),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASSWORD: z.string().default(''),
+  MAIL_FROM: z.string().default('FlowMarket <no-reply@flowmarket.dev>'),
 });
 
 export type Env = z.infer<typeof envSchema>;

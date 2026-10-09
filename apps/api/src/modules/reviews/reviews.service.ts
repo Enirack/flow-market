@@ -1,14 +1,21 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import type { AdminListReviewsDto } from './dto/admin-list-reviews.dto';
 import type { CreateReviewDto } from './dto/create-review.dto';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async create(clientId: string, dto: CreateReviewDto) {
-    const booking = await this.prisma.client.booking.findUnique({ where: { id: dto.bookingId } });
+    const booking = await this.prisma.client.booking.findUnique({
+      where: { id: dto.bookingId },
+      include: { items: { include: { service: true } }, provider: true, client: { include: { profile: true } } },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.clientId !== clientId) {
       throw new ForbiddenException('This booking does not belong to your account');
@@ -31,6 +38,15 @@ export class ReviewsService {
     });
 
     await this.recomputeProviderRating(booking.providerId);
+
+    const clientProfile = booking.client.profile;
+    void this.notifications.notify(booking.provider.userId, 'NEW_REVIEW', {
+      serviceTitle: booking.items[0]?.service.title ?? 'votre prestation',
+      rating: dto.rating,
+      comment: dto.comment ?? null,
+      clientName: clientProfile ? `${clientProfile.firstName} ${clientProfile.lastName}` : 'Un client',
+    });
+
     return review;
   }
 

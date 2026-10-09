@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CalendarDays, LayoutDashboard, Settings, ShoppingBag, Wallet } from 'lucide-react';
 import { SidebarNav } from '@flowmarket/ui';
+import { NotificationsBell } from '@/components/notifications-bell';
 
 const NAV_ITEMS = [
   { href: '/provider', label: 'Vue d’ensemble', icon: <LayoutDashboard /> },
@@ -24,7 +25,12 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         </Link>
         <SidebarNav items={NAV_ITEMS} activeHref={pathname} linkComponent={Link} />
       </aside>
-      <div className="flex-1 p-6">{children}</div>
+      <div className="flex-1">
+        <header className="flex items-center justify-end border-b border-border p-4">
+          <NotificationsBell />
+        </header>
+        <div className="p-6">{children}</div>
+      </div>
     </div>
   );
 }

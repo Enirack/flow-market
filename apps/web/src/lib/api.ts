@@ -416,3 +416,33 @@ export function createReview(input: { bookingId: string; rating: number; comment
 export function createDispute(input: { bookingId: string; reason: string; details?: string }): Promise<void> {
   return authedFetch('/disputes', { method: 'POST', body: JSON.stringify(input) });
 }
+
+// --- Notifications ---
+
+export interface NotificationItem {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationsPage {
+  notifications: NotificationItem[];
+  total: number;
+  unreadCount: number;
+  page: number;
+  totalPages: number;
+}
+
+export function getMyNotifications(): Promise<NotificationsPage> {
+  return authedFetch('/notifications?limit=10', { cache: 'no-store' });
+}
+
+export function markNotificationRead(id: string): Promise<void> {
+  return authedFetch(`/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+export function markAllNotificationsRead(): Promise<void> {
+  return authedFetch('/notifications/read-all', { method: 'PATCH' });
+}

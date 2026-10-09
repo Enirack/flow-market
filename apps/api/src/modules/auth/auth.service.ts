@@ -3,7 +3,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -16,6 +15,7 @@ import {
 import type { UserRole } from '@flowmarket/types';
 import { PrismaService } from '../../database/prisma.service';
 import { durationToMs } from '../../common/utils/duration';
+import { NotificationsService } from '../../notifications/notifications.service';
 import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
@@ -38,9 +38,10 @@ export interface PublicUser {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async register(dto: RegisterDto): Promise<{ user: PublicUser } & AuthTokens> {
     const existing = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
@@ -58,7 +59,7 @@ export class AuthService {
       },
     });
 
-    await this.issueEmailVerificationToken(user.id, user.email);
+    await this.issueEmailVerificationToken(user.id, user.email, dto.firstName);
 
     const tokens = await this.issueTokens(user.id, user.email, user.role);
     return { user: this.toPublicUser(user), ...tokens };
@@ -107,7 +108,10 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
-    const user = await this.prisma.client.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.client.user.findUnique({
+      where: { email: dto.email },
+      include: { profile: true },
+    });
     if (!user) {
       // Ne jamais révéler si l'email existe ou non.
       return;
@@ -123,7 +127,9 @@ export class AuthService {
       },
     });
 
-    this.logDevLink('Réinitialisation de mot de passe', user.email, token);
+    // Fire-and-forget : attendre l'envoi reel introduirait un ecart de temps de
+    // reponse entre un email connu et un email inconnu (enumeration de comptes).
+    void this.notifications.sendAuthEmail(user.email, user.profile?.firstName ?? 'là', 'reset', token);
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
@@ -168,7 +174,7 @@ export class AuthService {
     });
   }
 
-  private async issueEmailVerificationToken(userId: string, email: string): Promise<void> {
+  private async issueEmailVerificationToken(userId: string, email: string, firstName: string): Promise<void> {
     const token = generateOpaqueToken();
     await this.prisma.client.verificationToken.create({
       data: {
@@ -178,7 +184,8 @@ export class AuthService {
         expiresAt: new Date(Date.now() + durationToMs('24h')),
       },
     });
-    this.logDevLink('Vérification email', email, token);
+    // Fire-and-forget : ne doit jamais ralentir ou faire echouer l'inscription.
+    void this.notifications.sendAuthEmail(email, firstName, 'verify', token);
   }
 
   private async consumeVerificationToken(
@@ -244,11 +251,5 @@ export class AuthService {
       role: user.role,
       emailVerifiedAt: user.emailVerifiedAt,
     };
-  }
-
-  private logDevLink(label: string, email: string, token: string): void {
-    this.logger.log(
-      `[DEV] ${label} pour ${email} — token: ${token} (aucun email envoyé, Phase 10)`,
-    );
   }
 }

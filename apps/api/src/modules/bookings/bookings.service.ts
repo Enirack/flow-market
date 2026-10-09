@@ -3,11 +3,13 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PLATFORM_FEE_RATE } from '../../common/constants';
 import { PrismaService } from '../../database/prisma.service';
 import { hasSchedulingConflict } from '../../common/utils/booking-conflict.util';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { ACTIVE_BOOKING_STATUSES, AvailabilityService } from '../availability/availability.service';
 import { PaymentsService } from '../payments/payments.service';
 import type { CancelBookingDto } from './dto/cancel-booking.dto';
@@ -15,16 +17,19 @@ import type { CreateBookingDto } from './dto/create-booking.dto';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly availability: AvailabilityService,
     private readonly payments: PaymentsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(clientId: string, dto: CreateBookingDto) {
     const service = await this.prisma.client.service.findUnique({
       where: { id: dto.serviceId },
-      include: { options: true },
+      include: { options: true, provider: true },
     });
 
     if (!service || service.status !== 'PUBLISHED') {
@@ -52,7 +57,7 @@ export class BookingsService {
       throw new ConflictException('This time slot is outside the provider availability');
     }
 
-    return this.prisma.client.$transaction(async (tx) => {
+    const result = await this.prisma.client.$transaction(async (tx) => {
       // Verrou consultatif par prestataire : sérialise la vérification de
       // conflit + la création pour ce prestataire, sans bloquer les autres.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${service.providerId}))`;
@@ -128,6 +133,70 @@ export class BookingsService {
 
       return { booking, order };
     });
+
+    // Fire-and-forget : jamais attendu, jamais capable de faire echouer la
+    // creation de la reservation (y compris les requetes de lookup internes).
+    void this.notifyBookingCreated(service.provider.userId, clientId, service.title, scheduledAt);
+
+    return result;
+  }
+
+  private async getCounterpartName(userId: string): Promise<string> {
+    const profile = await this.prisma.client.profile.findUnique({ where: { userId } });
+    return profile ? `${profile.firstName} ${profile.lastName}` : 'Un utilisateur';
+  }
+
+  private async notifyBookingCreated(
+    providerUserId: string,
+    clientId: string,
+    serviceTitle: string,
+    scheduledAt: Date,
+  ): Promise<void> {
+    try {
+      const counterpartName = await this.getCounterpartName(clientId);
+      await this.notifications.notify(providerUserId, 'BOOKING_CREATED', {
+        serviceTitle,
+        scheduledAt: scheduledAt.toISOString(),
+        counterpartName,
+      });
+    } catch (error) {
+      this.logger.error(`Échec de notification (BOOKING_CREATED): ${(error as Error).message}`);
+    }
+  }
+
+  private async notifyBookingConfirmed(
+    clientId: string,
+    providerUserId: string,
+    bookingId: string,
+    scheduledAt: Date,
+  ): Promise<void> {
+    try {
+      const counterpartName = await this.getCounterpartName(providerUserId);
+      await this.notifications.notify(clientId, 'BOOKING_CONFIRMED', {
+        serviceTitle: await this.getServiceTitle(bookingId),
+        scheduledAt: scheduledAt.toISOString(),
+        counterpartName,
+      });
+    } catch (error) {
+      this.logger.error(`Échec de notification (BOOKING_CONFIRMED): ${(error as Error).message}`);
+    }
+  }
+
+  private async notifyBookingCancelled(
+    recipientUserId: string,
+    bookingId: string,
+    scheduledAt: Date,
+    reason?: string,
+  ): Promise<void> {
+    try {
+      await this.notifications.notify(recipientUserId, 'BOOKING_CANCELLED', {
+        serviceTitle: await this.getServiceTitle(bookingId),
+        scheduledAt: scheduledAt.toISOString(),
+        ...(reason ? { reason } : {}),
+      });
+    } catch (error) {
+      this.logger.error(`Échec de notification (BOOKING_CANCELLED): ${(error as Error).message}`);
+    }
   }
 
   async listMine(clientId: string) {
@@ -179,13 +248,17 @@ export class BookingsService {
       throw new BadRequestException('Only pending bookings can be confirmed');
     }
 
-    return this.prisma.client.$transaction([
+    const result = await this.prisma.client.$transaction([
       this.prisma.client.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED' } }),
       this.prisma.client.order.update({
         where: { bookingId },
         data: { status: 'CONFIRMED' },
       }),
     ]);
+
+    void this.notifyBookingConfirmed(booking.clientId, userId, bookingId, booking.scheduledAt);
+
+    return result;
   }
 
   async reject(userId: string, bookingId: string, dto: CancelBookingDto) {
@@ -194,13 +267,17 @@ export class BookingsService {
       throw new BadRequestException('Only pending bookings can be rejected');
     }
 
-    return this.prisma.client.$transaction([
+    const result = await this.prisma.client.$transaction([
       this.prisma.client.booking.update({
         where: { id: bookingId },
         data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: dto.reason ?? null },
       }),
       this.prisma.client.order.update({ where: { bookingId }, data: { status: 'CANCELLED' } }),
     ]);
+
+    void this.notifyBookingCancelled(booking.clientId, bookingId, booking.scheduledAt, dto.reason);
+
+    return result;
   }
 
   async complete(userId: string, bookingId: string) {
@@ -234,13 +311,44 @@ export class BookingsService {
       throw new BadRequestException('Cannot cancel a booking that has already started');
     }
 
-    return this.prisma.client.$transaction([
+    const result = await this.prisma.client.$transaction([
       this.prisma.client.booking.update({
         where: { id: bookingId },
         data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: dto.reason ?? null },
       }),
       this.prisma.client.order.update({ where: { bookingId }, data: { status: 'CANCELLED' } }),
     ]);
+
+    void this.notifyProviderOfCancellation(booking.providerId, bookingId, booking.scheduledAt, dto.reason);
+
+    return result;
+  }
+
+  private async notifyProviderOfCancellation(
+    providerId: string,
+    bookingId: string,
+    scheduledAt: Date,
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const provider = await this.prisma.client.provider.findUnique({ where: { id: providerId } });
+      if (!provider) return;
+      await this.notifications.notify(provider.userId, 'BOOKING_CANCELLED', {
+        serviceTitle: await this.getServiceTitle(bookingId),
+        scheduledAt: scheduledAt.toISOString(),
+        ...(reason ? { reason } : {}),
+      });
+    } catch (error) {
+      this.logger.error(`Échec de notification (BOOKING_CANCELLED): ${(error as Error).message}`);
+    }
+  }
+
+  private async getServiceTitle(bookingId: string): Promise<string> {
+    const item = await this.prisma.client.bookingItem.findFirst({
+      where: { bookingId, serviceOptionId: null },
+      include: { service: true },
+    });
+    return item?.service.title ?? 'votre prestation';
   }
 
   private async getOwnedByProvider(userId: string, bookingId: string) {

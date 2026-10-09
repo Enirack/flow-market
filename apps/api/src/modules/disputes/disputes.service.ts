@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import type { AdminListDisputesDto } from './dto/admin-list-disputes.dto';
 import type { CreateDisputeDto } from './dto/create-dispute.dto';
 import type { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -8,10 +9,16 @@ const DISPUTABLE_BOOKING_STATUSES = new Set(['CONFIRMED', 'IN_PROGRESS', 'COMPLE
 
 @Injectable()
 export class DisputesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async create(userId: string, dto: CreateDisputeDto) {
-    const booking = await this.prisma.client.booking.findUnique({ where: { id: dto.bookingId } });
+    const booking = await this.prisma.client.booking.findUnique({
+      where: { id: dto.bookingId },
+      include: { items: { include: { service: true } }, provider: true },
+    });
     if (!booking) throw new NotFoundException('Booking not found');
 
     const provider = await this.prisma.client.provider.findUnique({ where: { userId } });
@@ -28,6 +35,12 @@ export class DisputesService {
       }),
       this.prisma.client.booking.update({ where: { id: booking.id }, data: { status: 'DISPUTED' } }),
     ]);
+
+    const counterpartUserId = userId === booking.clientId ? booking.provider.userId : booking.clientId;
+    void this.notifications.notify(counterpartUserId, 'DISPUTE_OPENED', {
+      serviceTitle: booking.items[0]?.service.title ?? 'votre prestation',
+      reason: dto.reason,
+    });
 
     return dispute;
   }
@@ -53,7 +66,10 @@ export class DisputesService {
   }
 
   async adminResolve(disputeId: string, dto: ResolveDisputeDto, adminId: string) {
-    const dispute = await this.prisma.client.dispute.findUnique({ where: { id: disputeId } });
+    const dispute = await this.prisma.client.dispute.findUnique({
+      where: { id: disputeId },
+      include: { booking: { include: { items: { include: { service: true } }, provider: true } } },
+    });
     if (!dispute) throw new NotFoundException('Dispute not found');
     if (dispute.status === 'RESOLVED' || dispute.status === 'REJECTED') {
       throw new BadRequestException('This dispute has already been closed');
@@ -73,6 +89,15 @@ export class DisputesService {
       // (accepte ou rejete) : le litige lui-meme reste trace sur son propre statut.
       this.prisma.client.booking.update({ where: { id: dispute.bookingId }, data: { status: 'COMPLETED' } }),
     ]);
+
+    const serviceTitle = dispute.booking.items[0]?.service.title ?? 'votre prestation';
+    for (const userId of [dispute.booking.clientId, dispute.booking.provider.userId]) {
+      void this.notifications.notify(userId, 'DISPUTE_RESOLVED', {
+        serviceTitle,
+        status: dto.status,
+        resolution: dto.resolution,
+      });
+    }
 
     return updated;
   }

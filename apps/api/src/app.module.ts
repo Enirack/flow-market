@@ -23,6 +23,7 @@ import { ProvidersModule } from './modules/providers/providers.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { ServicesModule } from './modules/services/services.module';
 import { UsersModule } from './modules/users/users.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { RedisModule } from './redis/redis.module';
 import { SearchModule } from './search/search.module';
 
@@ -48,6 +49,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     }),
     DatabaseModule,
     RedisModule,
+    NotificationsModule,
     SearchModule,
     HealthModule,
     AuthModule,

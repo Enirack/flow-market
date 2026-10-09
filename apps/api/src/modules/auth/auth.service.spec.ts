@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPassword } from '@flowmarket/auth';
 import type { PrismaService } from '../../database/prisma.service';
+import type { NotificationsService } from '../../notifications/notifications.service';
 import { AuthService } from './auth.service';
 
 function createPrismaMock() {
@@ -38,7 +39,11 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     prismaMock = createPrismaMock();
-    service = new AuthService({ client: prismaMock } as unknown as PrismaService);
+    const notificationsMock = { sendAuthEmail: vi.fn().mockResolvedValue(undefined) };
+    service = new AuthService(
+      { client: prismaMock } as unknown as PrismaService,
+      notificationsMock as unknown as NotificationsService,
+    );
   });
 
   describe('register', () => {

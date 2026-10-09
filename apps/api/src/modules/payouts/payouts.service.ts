@@ -1,17 +1,21 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma, PayoutStatus } from '@flowmarket/database';
 import { UnsupportedProviderOperationError, type PaymentProviderRegistry } from '@flowmarket/payments';
 import { PAYMENT_PROVIDER_REGISTRY } from '../payments/payment-provider-registry.provider';
 import { PrismaService } from '../../database/prisma.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import type { ApprovePayoutDto } from './dto/approve-payout.dto';
 import type { RejectPayoutDto } from './dto/reject-payout.dto';
 import type { RequestPayoutDto } from './dto/request-payout.dto';
 
 @Injectable()
 export class PayoutsService {
+  private readonly logger = new Logger(PayoutsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_PROVIDER_REGISTRY) private readonly registry: PaymentProviderRegistry,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get allowMock(): boolean {
@@ -94,7 +98,7 @@ export class PayoutsService {
         destinationDetails: payout.destinationDetails as Record<string, unknown>,
       });
 
-      return this.prisma.client.payout.update({
+      const updated = await this.prisma.client.payout.update({
         where: { id: payoutId },
         data: {
           status: result.status,
@@ -102,13 +106,21 @@ export class PayoutsService {
           processedAt: result.status === 'PAID' ? new Date() : null,
         },
       });
+
+      if (updated.status === 'PAID' || updated.status === 'FAILED') {
+        void this.notifyPayoutOutcome(payout.providerId, Number(payout.amount), payout.currency, updated.status);
+      }
+      return updated;
     } catch (error) {
       await this.refundReservedFunds(payout.providerId, Number(payout.amount));
       const reason = error instanceof UnsupportedProviderOperationError ? error.message : 'Payout provider call failed';
-      return this.prisma.client.payout.update({
+      const updated = await this.prisma.client.payout.update({
         where: { id: payoutId },
         data: { status: 'FAILED', rejectionReason: reason, processedAt: new Date() },
       });
+
+      void this.notifyPayoutOutcome(payout.providerId, Number(payout.amount), payout.currency, 'FAILED', reason);
+      return updated;
     }
   }
 
@@ -121,10 +133,13 @@ export class PayoutsService {
 
     await this.refundReservedFunds(payout.providerId, Number(payout.amount));
 
-    return this.prisma.client.payout.update({
+    const updated = await this.prisma.client.payout.update({
       where: { id: payoutId },
       data: { status: 'REJECTED', rejectionReason: dto.reason ?? null, processedAt: new Date() },
     });
+
+    void this.notifyPayoutOutcome(payout.providerId, Number(payout.amount), payout.currency, 'REJECTED', dto.reason);
+    return updated;
   }
 
   private async refundReservedFunds(providerId: string, amount: number): Promise<void> {
@@ -132,5 +147,27 @@ export class PayoutsService {
       where: { providerId },
       data: { availableAmount: { increment: amount } },
     });
+  }
+
+  private async notifyPayoutOutcome(
+    providerId: string,
+    amount: number,
+    currency: string,
+    status: 'PAID' | 'FAILED' | 'REJECTED',
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const provider = await this.prisma.client.provider.findUnique({ where: { id: providerId } });
+      if (!provider) return;
+
+      await this.notifications.notify(provider.userId, 'PAYOUT_PROCESSED', {
+        amount,
+        currency,
+        status,
+        ...(reason ? { reason } : {}),
+      });
+    } catch (error) {
+      this.logger.error(`Échec de notification (PAYOUT_PROCESSED): ${(error as Error).message}`);
+    }
   }
 }

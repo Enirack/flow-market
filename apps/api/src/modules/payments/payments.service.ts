@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@flowmarket/database';
 import {
   MockPaymentProvider,
@@ -7,6 +7,7 @@ import {
   type WebhookEvent,
 } from '@flowmarket/payments';
 import { PrismaService } from '../../database/prisma.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { PAYMENT_PROVIDER_REGISTRY } from './payment-provider-registry.provider';
 import type { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import type { CreateRefundDto } from './dto/create-refund.dto';
@@ -16,9 +17,12 @@ const ACTIVE_PAYMENT_STATUSES = new Set(['PENDING', 'PROCESSING']);
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(PAYMENT_PROVIDER_REGISTRY) private readonly registry: PaymentProviderRegistry,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get allowMock(): boolean {
@@ -147,6 +151,7 @@ export class PaymentsService {
           }),
         ]);
         await this.creditProviderBalanceOnSuccess(payment.orderId);
+        void this.notifyOrderEvent(payment.orderId, 'PAYMENT_RECEIVED', Number(payment.amount), payment.currency);
       }
     } else if (event.type === 'payment.failed') {
       if (payment.status !== 'SUCCEEDED') {
@@ -156,6 +161,7 @@ export class PaymentsService {
             data: recordTransactionData(payment.id, 'FAILED', event),
           }),
         ]);
+        void this.notifyOrderEvent(payment.orderId, 'PAYMENT_FAILED', Number(payment.amount), payment.currency);
       }
     } else if (event.type === 'refund.succeeded') {
       await this.finalizeRefundFromWebhook(payment.id, event);
@@ -201,7 +207,7 @@ export class PaymentsService {
     });
 
     if (status === 'SUCCEEDED') {
-      await this.applyRefundEffects(payment.orderId, payment.id);
+      await this.applyRefundEffects(payment.orderId, payment.id, Number(refund.amount), refund.currency);
     }
 
     return refund;
@@ -269,10 +275,15 @@ export class PaymentsService {
       }),
       this.prisma.client.paymentTransaction.create({ data: recordTransactionData(payment.id, 'REFUNDED', event) }),
     ]);
-    await this.applyRefundEffects(payment.orderId, payment.id);
+    await this.applyRefundEffects(payment.orderId, payment.id, Number(pendingRefund.amount), pendingRefund.currency);
   }
 
-  private async applyRefundEffects(orderId: string, paymentId: string): Promise<void> {
+  private async applyRefundEffects(
+    orderId: string,
+    paymentId: string,
+    refundAmount: number,
+    refundCurrency: string,
+  ): Promise<void> {
     const order = await this.prisma.client.order.findUniqueOrThrow({ where: { id: orderId }, include: { booking: true } });
     const wasReleased = order.status === 'COMPLETED';
 
@@ -286,6 +297,28 @@ export class PaymentsService {
           : { pendingAmount: { decrement: order.providerAmount } },
       }),
     ]);
+
+    void this.notifyOrderEvent(orderId, 'REFUND_PROCESSED', refundAmount, refundCurrency);
+  }
+
+  private async notifyOrderEvent(
+    orderId: string,
+    type: 'PAYMENT_RECEIVED' | 'PAYMENT_FAILED' | 'REFUND_PROCESSED',
+    amount: number,
+    currency: string,
+  ): Promise<void> {
+    try {
+      const order = await this.prisma.client.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+      if (!order) return;
+
+      const serviceTitle = order.items[0]?.description ?? 'votre commande';
+      await this.notifications.notify(order.clientId, type, { serviceTitle, amount, currency });
+    } catch (error) {
+      this.logger.error(`Échec de notification (${type}): ${(error as Error).message}`);
+    }
   }
 
   private async assertParticipant(

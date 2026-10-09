@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AvailabilityService } from '../availability/availability.service';
 import type { PaymentsService } from '../payments/payments.service';
 import type { PrismaService } from '../../database/prisma.service';
+import type { NotificationsService } from '../../notifications/notifications.service';
 import { BookingsService } from './bookings.service';
 
 const FUTURE_DATE = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -44,17 +45,23 @@ describe('BookingsService.create', () => {
             currency: 'XOF',
             title: 'Test service',
             options: [],
+            provider: { userId: 'provider-user-1' },
           }),
+        },
+        profile: {
+          findUnique: vi.fn().mockResolvedValue({ firstName: 'Aïcha', lastName: 'Diallo' }),
         },
         $transaction: vi.fn((callback: (tx: unknown) => unknown) => callback(txMock)),
       },
     };
     availabilityMock = { isWithinAvailability: vi.fn().mockResolvedValue(true) };
     const paymentsMock = { releaseHoldForBooking: vi.fn().mockResolvedValue(undefined) };
+    const notificationsMock = { notify: vi.fn().mockResolvedValue(undefined) };
     service = new BookingsService(
       prismaMock as unknown as PrismaService,
       availabilityMock as unknown as AvailabilityService,
       paymentsMock as unknown as PaymentsService,
+      notificationsMock as unknown as NotificationsService,
     );
   });
 
