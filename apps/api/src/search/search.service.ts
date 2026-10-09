@@ -21,6 +21,7 @@ export interface ServiceSearchDocument {
 export interface SearchServicesParams {
   q?: string;
   categorySlug?: string;
+  maxPrice?: number;
   sort?: 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest';
   page: number;
   limit: number;
@@ -55,7 +56,7 @@ export class SearchService implements OnModuleInit {
       const index = this.client.index(SERVICES_INDEX);
       await index.updateSettings({
         searchableAttributes: ['title', 'description', 'providerName', 'category'],
-        filterableAttributes: ['categorySlug', 'providerId'],
+        filterableAttributes: ['categorySlug', 'providerId', 'price'],
         sortableAttributes: ['price', 'rating', 'createdAt'],
       });
     } catch (error) {
@@ -84,10 +85,15 @@ export class SearchService implements OnModuleInit {
   }
 
   async searchServices(params: SearchServicesParams): Promise<SearchServicesResult> {
-    const { q = '', categorySlug, sort = 'relevance', page, limit } = params;
+    const { q = '', categorySlug, maxPrice, sort = 'relevance', page, limit } = params;
+
+    const filters = [
+      ...(categorySlug ? [`categorySlug = "${categorySlug}"`] : []),
+      ...(maxPrice ? [`price <= ${maxPrice}`] : []),
+    ];
 
     const result = await this.index().search(q, {
-      ...(categorySlug ? { filter: [`categorySlug = "${categorySlug}"`] } : {}),
+      ...(filters.length > 0 ? { filter: filters } : {}),
       ...(SORT_MAP[sort] ? { sort: SORT_MAP[sort] } : {}),
       offset: (page - 1) * limit,
       limit,

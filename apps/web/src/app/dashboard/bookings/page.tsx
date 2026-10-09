@@ -25,6 +25,7 @@ import {
   createDispute,
   createPaymentIntent,
   createReview,
+  draftReview,
   getMyBookings,
   simulateMockPayment,
 } from '@/lib/api';
@@ -54,6 +55,8 @@ export default function DashboardBookingsPage() {
   const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewKeywords, setReviewKeywords] = useState('');
+  const [aiDrafting, setAiDrafting] = useState(false);
   const [disputeBookingId, setDisputeBookingId] = useState<string | null>(null);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeDetails, setDisputeDetails] = useState('');
@@ -101,8 +104,22 @@ export default function DashboardBookingsPage() {
   function openReview(bookingId: string) {
     setReviewRating(5);
     setReviewComment('');
+    setReviewKeywords('');
     setDialogError(null);
     setReviewBookingId(bookingId);
+  }
+
+  async function handleDraftReview() {
+    setAiDrafting(true);
+    setDialogError(null);
+    try {
+      const { comment } = await draftReview({ rating: reviewRating, ...(reviewKeywords ? { keywords: reviewKeywords } : {}) });
+      setReviewComment(comment);
+    } catch (err) {
+      setDialogError(err instanceof Error ? err.message : "Échec de la génération.");
+    } finally {
+      setAiDrafting(false);
+    }
   }
 
   async function handleSubmitReview() {
@@ -244,6 +261,20 @@ export default function DashboardBookingsPage() {
                     />
                   </button>
                 ))}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="review-keywords">Mots-clés (optionnel)</Label>
+              <div className="mt-1 flex gap-2">
+                <Input
+                  id="review-keywords"
+                  placeholder="ex. rapide, professionnel, prix correct"
+                  value={reviewKeywords}
+                  onChange={(e) => setReviewKeywords(e.target.value)}
+                />
+                <Button type="button" variant="outline" size="sm" disabled={aiDrafting} onClick={handleDraftReview}>
+                  {aiDrafting ? '…' : 'IA ✨'}
+                </Button>
               </div>
             </div>
             <div>

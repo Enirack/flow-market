@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { validateEnv } from './config/env.validation';
+import { AiModule } from './ai/ai.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -49,6 +50,7 @@ const isProduction = process.env.NODE_ENV === 'production';
     }),
     DatabaseModule,
     RedisModule,
+    AiModule,
     NotificationsModule,
     SearchModule,
     HealthModule,

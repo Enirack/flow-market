@@ -25,6 +25,7 @@ import {
   archiveService,
   createService,
   deleteService,
+  generateServiceListing,
   getCategories,
   getMyServices,
   publishService,
@@ -81,6 +82,8 @@ export default function ProviderServicesPage() {
   const [optionPrice, setOptionPrice] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [aiRaw, setAiRaw] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   async function load() {
     const [servicesRes, categoriesRes] = await Promise.all([getMyServices(), getCategories()]);
@@ -94,8 +97,23 @@ export default function ProviderServicesPage() {
 
   function openCreate() {
     setForm(EMPTY_FORM);
+    setAiRaw('');
     setError(null);
     setCreating(true);
+  }
+
+  async function handleGenerateListing() {
+    if (!aiRaw.trim()) return;
+    setAiLoading(true);
+    setError(null);
+    try {
+      const { title, description } = await generateServiceListing(aiRaw);
+      setForm((current) => ({ ...current, title, description }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec de la génération.");
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   function openEdit(service: ProviderService) {
@@ -269,6 +287,21 @@ export default function ProviderServicesPage() {
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <div className="space-y-3">
+            {creating && (
+              <div className="space-y-2 rounded-md border border-dashed border-input p-3">
+                <Label htmlFor="svc-ai-raw">Décrivez votre service en quelques mots (IA)</Label>
+                <Textarea
+                  id="svc-ai-raw"
+                  rows={2}
+                  placeholder="ex. création de logo moderne pour petites entreprises, livraison en 3 jours"
+                  value={aiRaw}
+                  onChange={(e) => setAiRaw(e.target.value)}
+                />
+                <Button type="button" variant="outline" size="sm" disabled={aiLoading} onClick={handleGenerateListing}>
+                  {aiLoading ? 'Génération…' : 'Générer avec l’IA ✨'}
+                </Button>
+              </div>
+            )}
             <div>
               <Label htmlFor="svc-title">Titre</Label>
               <Input

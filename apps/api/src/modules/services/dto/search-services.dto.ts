@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
 
 export class SearchServicesDto {
   @IsOptional()
@@ -9,6 +9,12 @@ export class SearchServicesDto {
   @IsOptional()
   @IsString()
   category?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
+  maxPrice?: number;
 
   @IsOptional()
   @IsIn(['relevance', 'price_asc', 'price_desc', 'rating', 'newest'])

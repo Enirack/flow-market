@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { AiService } from '../../ai/ai.service';
 import { slugify } from '../../common/utils/slugify.util';
 import { PrismaService } from '../../database/prisma.service';
 import { RedisService } from '../../redis/redis.service';
@@ -19,12 +20,14 @@ export class ServicesService {
     private readonly prisma: PrismaService,
     private readonly searchService: SearchService,
     private readonly redis: RedisService,
+    private readonly ai: AiService,
   ) {}
 
   async search(dto: SearchServicesDto) {
     return this.searchService.searchServices({
       ...(dto.q ? { q: dto.q } : {}),
       ...(dto.category ? { categorySlug: dto.category } : {}),
+      ...(dto.maxPrice !== undefined ? { maxPrice: dto.maxPrice } : {}),
       ...(dto.sort ? { sort: dto.sort } : {}),
       page: dto.page,
       limit: dto.limit,
@@ -147,6 +150,11 @@ export class ServicesService {
     const provider = await this.getProviderOrThrow(userId);
     const category = await this.prisma.client.category.findUnique({ where: { id: dto.categoryId } });
     if (!category) throw new BadRequestException('Unknown category');
+
+    const moderation = await this.ai.moderateText(`${dto.title}\n${dto.description}`);
+    if (moderation.flagged) {
+      throw new BadRequestException(moderation.reason ?? 'This service listing was flagged by content moderation');
+    }
 
     const slug = await this.generateUniqueSlug(dto.title);
 

@@ -41,6 +41,10 @@ export const envSchema = z.object({
   SMTP_USER: z.string().default(''),
   SMTP_PASSWORD: z.string().default(''),
   MAIL_FROM: z.string().default('FlowMarket <no-reply@flowmarket.dev>'),
+  // AI_API_KEY vide (defaut) => mode dev : les fonctionnalites IA utilisent
+  // des heuristiques locales au lieu d'appeler une vraie API.
+  AI_PROVIDER: z.enum(['anthropic', 'mock']).default('mock'),
+  AI_API_KEY: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

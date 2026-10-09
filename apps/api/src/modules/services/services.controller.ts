@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import type { AccessTokenPayload } from '@flowmarket/auth';
+import { AiService } from '../../ai/ai.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -7,18 +8,36 @@ import { AddServiceImageDto } from './dto/add-service-image.dto';
 import { AdminListServicesDto } from './dto/admin-list-services.dto';
 import { CreateServiceOptionDto } from './dto/create-service-option.dto';
 import { CreateServiceDto } from './dto/create-service.dto';
+import { GenerateListingDto } from './dto/generate-listing.dto';
+import { ParseSearchQueryDto } from './dto/parse-search-query.dto';
 import { SearchServicesDto } from './dto/search-services.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 
 @Controller('services')
 export class ServicesController {
-  constructor(private readonly servicesService: ServicesService) {}
+  constructor(
+    private readonly servicesService: ServicesService,
+    private readonly ai: AiService,
+  ) {}
 
   @Public()
   @Get()
   search(@Query() dto: SearchServicesDto) {
     return this.servicesService.search(dto);
+  }
+
+  // Routes IA statiques declarees avant ":slug" (public), meme precaution que "me".
+  @Roles('PROVIDER')
+  @Post('ai/generate-listing')
+  generateListing(@Body() dto: GenerateListingDto) {
+    return this.ai.generateServiceListing(dto.raw);
+  }
+
+  @Public()
+  @Post('ai/parse-search')
+  parseSearchQuery(@Body() dto: ParseSearchQueryDto) {
+    return this.ai.parseSearchQuery(dto.query);
   }
 
   // Les routes "me" (provider) sont declarees avant ":slug" (public) pour eviter

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { AiService } from '../../ai/ai.service';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import type { AdminListReviewsDto } from './dto/admin-list-reviews.dto';
@@ -9,6 +10,7 @@ export class ReviewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly ai: AiService,
   ) {}
 
   async create(clientId: string, dto: CreateReviewDto) {
@@ -26,6 +28,13 @@ export class ReviewsService {
 
     const existing = await this.prisma.client.review.findUnique({ where: { bookingId: booking.id } });
     if (existing) throw new ConflictException('This booking has already been reviewed');
+
+    if (dto.comment) {
+      const moderation = await this.ai.moderateText(dto.comment);
+      if (moderation.flagged) {
+        throw new BadRequestException(moderation.reason ?? 'This comment was flagged by content moderation');
+      }
+    }
 
     const review = await this.prisma.client.review.create({
       data: {

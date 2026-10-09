@@ -118,6 +118,7 @@ export function getCategories(): Promise<Category[]> {
 export function searchServices(params: {
   q?: string;
   category?: string;
+  maxPrice?: number;
   sort?: string;
   page?: number;
   limit?: number;
@@ -125,11 +126,16 @@ export function searchServices(params: {
   const query = new URLSearchParams();
   if (params.q) query.set('q', params.q);
   if (params.category) query.set('category', params.category);
+  if (params.maxPrice) query.set('maxPrice', String(params.maxPrice));
   if (params.sort) query.set('sort', params.sort);
   query.set('page', String(params.page ?? 1));
   query.set('limit', String(params.limit ?? 12));
 
   return apiFetch(`/services?${query.toString()}`, { cache: 'no-store' });
+}
+
+export function parseSearchQuery(query: string): Promise<{ q?: string; category?: string; maxPrice?: number }> {
+  return apiFetch('/services/ai/parse-search', { method: 'POST', body: JSON.stringify({ query }) });
 }
 
 export function getServiceBySlug(slug: string): Promise<ServiceDetail> {
@@ -265,6 +271,10 @@ export function createService(input: {
   durationMinutes?: number;
 }): Promise<ProviderService> {
   return authedFetch('/services', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function generateServiceListing(raw: string): Promise<{ title: string; description: string }> {
+  return authedFetch('/services/ai/generate-listing', { method: 'POST', body: JSON.stringify({ raw }) });
 }
 
 export function updateService(id: string, input: Partial<Parameters<typeof createService>[0]>): Promise<ProviderService> {
@@ -411,6 +421,10 @@ export function removeAvailability(id: string): Promise<void> {
 
 export function createReview(input: { bookingId: string; rating: number; comment?: string }): Promise<void> {
   return authedFetch('/reviews', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function draftReview(input: { rating: number; keywords?: string }): Promise<{ comment: string }> {
+  return authedFetch('/reviews/ai/draft', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function createDispute(input: { bookingId: string; reason: string; details?: string }): Promise<void> {
